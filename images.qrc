@@ -1,0 +1,17 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>350.jpg</file>
+        <file>R.jpg</file>
+        <file>QQ图片20230807184159.png</file>
+        <file>OIP.png</file>
+        <file>R (1).png</file>
+        <file>R.png</file>
+        <file>control.png</file>
+        <file>statistics.png</file>
+        <file>780 (1).png</file>
+        <file>ccc.png</file>
+        <file>01b.jpg</file>
+        <file>视频咨询 (1).png</file>
+        <file>数据分析.png</file>
+    </qresource>
+</RCC>
