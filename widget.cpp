@@ -20,7 +20,7 @@ Widget::Widget(QWidget *parent)
     InitLogin();
     InitDataBase();
     InitiatData();
-    connect(timer,&QTimer::timeout,this,&Widget::handtimeout);
+    connect(timer,&QTimer::timeout,this,&Widget::ReadRequest);
     connect(timer,&QTimer::timeout,this,&Widget::InitTime);
 
 }
@@ -227,10 +227,10 @@ void Widget::InitiatMQTT()
     qDebug()<<"连接阿里云"<<endl;
 }
 
-void Widget::handtimeout()
-{
-    ReadRequest();
-}
+//void Widget::handtimeout()
+//{
+//    ReadRequest();
+//}
 
 void Widget::ReadyRead()
 {
@@ -342,7 +342,7 @@ void Widget::receiveMessageSlot(QMQTT::Message message)
 
             }
           else  if(cmd=="TimerSwitch2"){
-                QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,12,1);
+                QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,13,1); //寄存器+1
                 writeunit.setValue(0,data);
                  QModbusReply *reply = client->sendWriteRequest(writeunit,1);
                  if(reply){
@@ -483,7 +483,7 @@ void Widget::InitDataBase()
     CenterAlignedDelegate *delegate = new CenterAlignedDelegate;
     ui->tableView->setItemDelegate(delegate);
     ui->comboBox->setItemDelegate(delegate);
-    connect(ui->comboBox,QOverload<int>::of(&QComboBox::currentIndexChanged),this,&Widget::currentIndexChangedSlot);
+    connect(ui->comboBox,QOverload<int>::of(&QComboBox::currentIndexChanged),this,&Widget::currentIndexChangedSlot1);
 }
 
 void Widget::InsertValue()
@@ -613,7 +613,7 @@ void Widget::InitiatData()
 
 void Widget::ReadRequest()
 {
-    QModbusDataUnit readunit(QModbusDataUnit::HoldingRegisters,0,14);
+    QModbusDataUnit readunit(QModbusDataUnit::HoldingRegisters,0,24); //24个寄存器
    if(auto *reply =client->sendReadRequest(readunit,1))
     {
         if (!reply->isFinished())
@@ -703,13 +703,13 @@ void Widget::displayData()
         temperature =readData.value(0);
         humidty = readData.value(1);
         voltage = readData.value(2);
-        current = readData.value(3)/1000.0;
+        current = readData.value(3)/100.0; //电流改变
         flagswich = readData.value(4);
 
         temperature2 =readData.value(7);
         humidty2 = readData.value(8);
         voltage2 = readData.value(9);
-        current2 = readData.value(10)/1000.0;
+        current2 = readData.value(10)/100.0;
         flagswich2 =readData.value(11);
 
         QString str1 =QString("%1").arg(temperature);
@@ -787,7 +787,7 @@ void Widget::InitTime()
 }
 #endif
 
-void Widget::on_timer0_clicked()  // start timer or stop timer
+void Widget::Start_timer_clicked()  // start timer or stop timer
 {
     if(timer->isActive())
     {
@@ -876,7 +876,7 @@ void Widget::receiveAssure1(bool flagsuccess)
     }
 }
 
-void Widget::currentIndexChangedSlot(int index)
+void Widget::currentIndexChangedSlot1(int index) //重命名 槽函数
 {
     m_index = index;
     qDebug()<<m_index<<endl;
@@ -999,7 +999,7 @@ void Widget::on_swich2Button_clicked()
 {
     if(!flagswich2)
     {
-        QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,13,1);//充电
+        QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,14,1);//充电
         writeunit.setValue(0,1);
          QModbusReply *reply = client->sendWriteRequest(writeunit,1);
          if(reply){
@@ -1011,7 +1011,7 @@ void Widget::on_swich2Button_clicked()
     }
     else
     {
-        QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,13,1);//断电
+        QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,14,1);//断电
         writeunit.setValue(0,0);
          QModbusReply *reply = client->sendWriteRequest(writeunit,1);
          if(reply){
@@ -1051,3 +1051,6 @@ void Widget::on_comboBoxID_currentIndexChanged(int index)
     m_index2 = index;
     qDebug()<<m_index2<<endl;
 }
+
+
+

@@ -74,9 +74,9 @@ private slots:
 
    // void on_pushButton_4_clicked();
 
-    void on_timer0_clicked();
+    void Start_timer_clicked();
 
-    void handtimeout();
+  //  void handtimeout();
 
     void ReadyRead();    
 
@@ -92,7 +92,7 @@ private slots:
 
     void receiveAssure1(bool flagsuccess);
 
-    void currentIndexChangedSlot(int index);
+    void currentIndexChangedSlot1(int index);
 
     void on_displayTable_clicked();
 
@@ -123,6 +123,7 @@ private slots:
     void on_data_statistics_clicked();
 
     void on_comboBoxID_currentIndexChanged(int index);
+
 
 private:
     Ui::Widget *ui;
