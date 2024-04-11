@@ -74,11 +74,11 @@ private slots:
 
    // void on_pushButton_4_clicked();
 
-    void Start_timer_clicked();
+    void on_timer0_clicked();
 
   //  void handtimeout();
 
-    void ReadyRead();    
+    void Receive_Data();
 
     void dataReceivedVideo();
 
@@ -86,7 +86,7 @@ private slots:
 
     void receiveMessageSlot(QMQTT::Message message);
 
-    void on_pushButton_5_clicked();
+    void on_clear_chart_clicked();
 
     void on_swich1Button_clicked();
 
@@ -123,6 +123,9 @@ private slots:
     void on_data_statistics_clicked();
 
     void on_comboBoxID_currentIndexChanged(int index);
+
+
+    void on_swich3Button_clicked();
 
 
 private:

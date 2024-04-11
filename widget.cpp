@@ -29,6 +29,402 @@ Widget::~Widget()
     delete ui;
 }
 
+// =========== ModbusTCP代码 ===========
+
+void Widget::InitiatModClient()
+{
+    client->setConnectionParameter(QModbusDevice::NetworkPortParameter,500);
+    client->setConnectionParameter(QModbusDevice::NetworkAddressParameter,"192.168.1.100");
+    client->setTimeout(1000);
+    client->setNumberOfRetries(1);
+    if(client->state()!=QModbusDevice::ConnectedState)
+    {
+        client->connectDevice();
+    }
+    else{
+        client->disconnectDevice();
+    }
+
+}
+
+void Widget::Receive_Data()
+{
+    displayData();
+    generaChart();
+    uploadali();
+    alarm();
+
+    static int timenumber = 2;
+    while (!(timenumber--)) {
+       InsertValue();
+       InsertValue2();
+       timenumber = 2;
+    }
+}
+
+void Widget::ReadRequest()
+{
+    QModbusDataUnit readunit(QModbusDataUnit::HoldingRegisters,0,24); //24个寄存器
+   if(auto *reply =client->sendReadRequest(readunit,1))
+    {
+        if (!reply->isFinished())
+                {
+                   QObject::connect(reply, &QModbusReply::finished,this,&Widget::Receive_Data);
+                    qDebug()<<"zhengzaiduqu"<<endl;
+                }
+                else
+                {
+                    delete reply;
+                }
+   }
+}
+
+void Widget::displayData()
+{
+    auto *reply = qobject_cast<QModbusReply *>(sender());
+    if (!reply){
+        return ;
+    }
+    if (reply->error() == QModbusDevice::NoError)
+    {
+
+        const QModbusDataUnit readData = reply->result();
+        vector.append(readData.value(0));
+
+        temperature =readData.value(0);
+        humidty = readData.value(1);
+        voltage = readData.value(2);
+        current = readData.value(3)/100.0; //电流改变
+        flagswich = readData.value(4);
+
+        temperature2 =readData.value(7);
+        humidty2 = readData.value(8);
+        voltage2 = readData.value(9);
+        current2 = readData.value(10)/100.0;
+        flagswich2 =readData.value(11);
+
+        QString str1 =QString("%1").arg(temperature);
+        QString str2 =QString("%1").arg(humidty);
+        QString str3 =QString("%1").arg(voltage,0,'f',1);
+        QString str4 =QString("%1").arg(current,0,'f',2);//显示的是小数点后的位数
+
+        QString str5 =QString("%1").arg(temperature2);
+        QString str6 =QString("%1").arg(humidty2);
+        QString str7 =QString("%1").arg(voltage2,0,'f',1);
+        QString str8 =QString("%1").arg(current2,0,'f',2);//显示的是小数点后的位数
+
+
+        ui->temp1->setText(str1+"℃");
+        ui->hum1->setText(str2+"%");
+        ui->vol1->setText(str3);
+        ui->current1->setText(str4);
+        ui->temp2->setText(str5+"℃");
+        ui->hum2->setText(str6+"%");
+        ui->vol2->setText(str7);
+        ui->current2->setText(str8);
+
+        if(flagswich)
+        {
+        ui->swich1->setText("ON");
+        ui->swich1Button->setText("断电");
+        chargeTime();
+         }
+        else
+        {
+            ui->swich1->setText("OFF");
+           ui->swich1Button->setText("充电");
+           //断电后不显示电压电流
+           ui->vol1->setText("0.0");
+           ui->current1->setText("0.00");
+        }
+
+        if(flagswich2)
+        {
+        ui->swich2->setText("ON");
+        ui->swich2Button->setText("断电");
+        chargeTime2();
+         }
+        else
+        {
+            ui->swich2->setText("OFF");
+           ui->swich2Button->setText("充电");
+           //断电后不显示电压电流
+           ui->vol2->setText("0.0");
+           ui->current2->setText("0.00");
+        }
+
+
+        qDebug()<<temperature<< humidty<<voltage2<<current2<<flagswich<<endl;
+        qDebug()<<"读取成功"<<endl;
+        vector.clear();
+    }
+    else
+    {
+        qDebug()<<"读取失败"<<endl;
+
+    }
+    reply->deleteLater(); // delete the reply
+}
+
+void Widget::on_swich1Button_clicked()
+{
+    if(!flagswich)
+    {
+        QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,6,1);//充电
+        writeunit.setValue(0,1);
+         QModbusReply *reply = client->sendWriteRequest(writeunit,1);
+         if(reply){
+             reply->deleteLater();
+         }
+        flagswich = 1;
+        ui->swich1->setText("ON");
+        ui->swich1Button->setText("断电");
+    }
+    else
+    {
+        QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,6,1);//断电
+        writeunit.setValue(0,0);
+         QModbusReply *reply = client->sendWriteRequest(writeunit,1);
+         if(reply){
+             reply->deleteLater();
+         }
+         flagswich = 0;
+         ui->swich1->setText("OFF");
+        ui->swich1Button->setText("充电");
+        //断电后不显示电压电流
+        ui->vol1->setText("0.00");
+        ui->current1->setText("0.00");
+    }
+}
+
+void Widget::on_swich2Button_clicked()
+{
+    if(!flagswich2)
+    {
+        QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,14,1);//充电
+        writeunit.setValue(0,1);
+         QModbusReply *reply = client->sendWriteRequest(writeunit,1);
+         if(reply){
+             reply->deleteLater();
+         }
+        flagswich2 = 1;
+        ui->swich2->setText("ON");
+        ui->swich2Button->setText("断电");
+    }
+    else
+    {
+        QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,14,1);//断电
+        writeunit.setValue(0,0);
+         QModbusReply *reply = client->sendWriteRequest(writeunit,1);
+         if(reply){
+             reply->deleteLater();
+         }
+         flagswich2 = 0;
+         ui->swich2->setText("OFF");
+        ui->swich2Button->setText("充电");
+        //断电后不显示电压电流
+        ui->vol2->setText("0.00");
+        ui->current2->setText("0.00");
+    }
+}
+
+void Widget::on_swich3Button_clicked()
+{
+
+}
+
+void Widget::chargeTime()
+{
+   int min1;
+   static int ChargeTime1 = 0;
+   ChargeTime1++;
+   min1=ChargeTime1/60;
+   QString str =QString("%1分钟").arg(min1);
+   ui->chargetime->setText(str);
+
+}
+
+void Widget::chargeTime2()
+{
+    int min1;
+    static int ChargeTime1 = 0;
+    ChargeTime1++;
+    min1=ChargeTime1/60;
+    QString str =QString("%1分钟").arg(min1);
+    ui->chargetime2->setText(str);
+}
+
+
+// =========== MQTT代码 ===========
+
+void Widget::InitiatMQTT()
+{
+
+    m_strProductKey="ie44FqhJNgx";  //需要跟阿里云Iot平台一致;
+    m_strDeviceName="D001";   //需要跟阿里云Iot平台一致;
+    m_strDeviceSecret="867e361641c03ffdf283fd4bccc593c8";   //需要跟阿里云平台一致
+    m_strRegionId="cn-shanghai";
+    m_strTargetServer = m_strProductKey + ".iot-as-mqtt." + m_strRegionId + ".aliyuncs.com";//域名
+
+    QString clientId="abcdefg";       //表示客户端ID，建议使用设备的MAC地址或SN码，64字符内。
+    QString signmethod = "hmacsha1";    //加密方式
+    QString message ="clientId"+clientId+"deviceName"+m_strDeviceName+"productKey"+m_strProductKey;
+
+    QHostAddress m_address(m_strTargetServer);
+    m_client = new QMQTT::Client(m_address,1883);
+    m_client->setClientId(clientId + "|securemode=3,signmethod=" + signmethod + /*",timestamp="+timestamp+ */"|");
+    m_client->setUsername(m_strDeviceName + "&" + m_strProductKey);
+    m_client->setPassword(QMessageAuthenticationCode::hash(message.toLocal8Bit(),m_strDeviceSecret.toLocal8Bit(),
+                                                           QCryptographicHash::Sha1).toHex());
+    m_client->setKeepAlive(120);
+    m_client->setHostName(m_strTargetServer);
+    m_client->setPort(1883);
+    m_client->connectToHost();
+
+    QString subscription="/ie44FqhJNgx/D001/user/get";
+    //QString topic="/ie44FqhJNgx/D001/user/update";
+    m_client->subscribe(subscription);
+    connect(m_client,SIGNAL(received(QMQTT::Message)),this,SLOT(receiveMessageSlot(QMQTT::Message)));
+    qDebug()<<"连接阿里云"<<endl;
+}
+
+void Widget::uploadali()
+{
+    int aliswich1,aliswich2;
+    if(ui->swich1->text()=="OFF")
+    {
+        aliswich1 = 0;
+    }
+    else
+    {
+        aliswich1 = 1;
+    }
+    if(ui->swich2->text()=="OFF")
+    {
+        aliswich2 = 0;
+    }
+    else
+    {
+        aliswich2 = 1;
+    }
+    QString topic="/ie44FqhJNgx/D001/user/update";
+    QString msg="{\"temperature1\":";
+            msg+=ui->temp1->text().mid(0,2);
+            msg+=",\"Humidity1\":";
+             msg+=ui->hum1->text().mid(0,2);
+              msg+=",\"RMSCurrent1\":";
+              msg+=ui->current1->text();
+              msg+=",\"RMSVoltage1\":";
+              msg+=ui->vol1->text();
+              msg+=",\"NO1\":";
+              msg+=QString::number(aliswich1);
+              msg+=",\"GeoLocation1\":";
+              msg+=QString::number(aliswich1);
+              msg+="}";
+    QByteArray ba;
+    ba.append(msg);
+    QMQTT::Message message(1,topic,ba);
+    m_client->publish(message);
+
+    QString msg2="{\"temperature2\":";
+    msg2+=ui->temp2->text().mid(0,2);
+    msg2+=",\"Humidity2\":";
+    msg2+=ui->hum2->text().mid(0,2);
+    msg2+=",\"RMSCurrent2\":";
+    msg2+=ui->current2->text();
+    msg2+=",\"RMSVoltage2\":";
+    msg2+=ui->vol2->text();
+    msg2+=",\"NO2\":";
+    msg2+=QString::number(aliswich2);
+    msg2+=",\"GeoLocation2\":";
+    msg2+=QString::number(aliswich2);
+    msg2+="}";
+    QByteArray ba2;
+    ba2.append(msg2);
+    QMQTT::Message message2(2,topic,ba2);
+    m_client->publish(message2);
+
+    qDebug()<<"上传1,2成功"<<endl;
+   // qDebug()<<topic<<endl;
+}
+
+void Widget::receiveMessageSlot(QMQTT::Message message)
+{
+    QByteArray pay_load = message.payload();
+    QJsonParseError jsonError;
+    QJsonDocument doc = QJsonDocument::fromJson(pay_load, &jsonError);
+    qDebug()<<"收到消息";
+    if (doc.isObject()) {
+            QJsonObject object = doc.object();  // 转化为对象
+
+            QJsonValue value = object.value("data");
+            QString str1 = value.toString();
+            int data= value.toInt();
+            QString num=QString::number(data);
+
+            QJsonValue name = object.value("cmd");  // 获取指定 key 对应的 value
+            QString cmd = name.toString();// 将 value 转化为字符串
+
+            if(cmd=="NO1"){
+              if( (data&&(!flagswich)) | ((!data)&&flagswich) )
+               on_swich1Button_clicked();
+            }
+           else if(cmd=="TimerSwitch1"){
+                QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,5,1);
+                writeunit.setValue(0,data);
+                 QModbusReply *reply = client->sendWriteRequest(writeunit,1);
+                 if(reply){
+                     reply->deleteLater();
+                 }
+                 if(data)
+                 {
+                    ui->appoint1->setText("已预约");
+                 }
+                 else {
+                    ui->appoint1->setText("未预约");
+                 }
+
+            }
+          else  if(cmd=="TimerSwitch2"){
+                QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,13,1); //寄存器+1
+                writeunit.setValue(0,data);
+                 QModbusReply *reply = client->sendWriteRequest(writeunit,1);
+                 if(reply){
+                     reply->deleteLater();
+                 }
+                 if(data)
+                 {
+                    ui->appoint2->setText("已预约");
+                 }
+                 else {
+                    ui->appoint2->setText("未预约");
+                 }
+
+
+            }
+         else   if(cmd=="NO2"){
+              if( (data&&(!flagswich2)) | ((!data)&&flagswich2) )
+                on_swich2Button_clicked();
+            }
+        else   if(cmd=="AppointmentTime1"){
+              // QString str =QString("%1:00").arg(data);
+
+            }
+        else   if(cmd=="ENDTime1"){
+              //  QString str =QString("%1:00").arg(data);
+
+            }
+        else   if(cmd=="ParkedNumber"){
+               ui->packedNumber->setText(str1);
+               qDebug()<<"parkednumber"<<str1;
+
+            }
+
+     }
+}
+
+// =========== Chart代码 ===========
+
 void Widget::InitiatChart()
 {
     ui->chargetime->setText("0分钟");
@@ -180,205 +576,6 @@ void Widget::InitiatChart()
 
 }
 
-void Widget::InitiatModClient()
-{
-    client->setConnectionParameter(QModbusDevice::NetworkPortParameter,500);
-    client->setConnectionParameter(QModbusDevice::NetworkAddressParameter,"192.168.1.100");
-    client->setTimeout(1000);
-    client->setNumberOfRetries(1);
-    if(client->state()!=QModbusDevice::ConnectedState)
-    {
-        client->connectDevice();
-    }
-    else{
-        client->disconnectDevice();
-    }
-
-}
-
-void Widget::InitiatMQTT()
-{
-
-    m_strProductKey="ie44FqhJNgx";  //需要跟阿里云Iot平台一致;
-    m_strDeviceName="D001";   //需要跟阿里云Iot平台一致;
-    m_strDeviceSecret="867e361641c03ffdf283fd4bccc593c8";   //需要跟阿里云平台一致
-    m_strRegionId="cn-shanghai";
-    m_strTargetServer = m_strProductKey + ".iot-as-mqtt." + m_strRegionId + ".aliyuncs.com";//域名
-
-    QString clientId="abcdefg";       //表示客户端ID，建议使用设备的MAC地址或SN码，64字符内。
-    QString signmethod = "hmacsha1";    //加密方式
-    QString message ="clientId"+clientId+"deviceName"+m_strDeviceName+"productKey"+m_strProductKey;
-
-    QHostAddress m_address(m_strTargetServer);
-    m_client = new QMQTT::Client(m_address,1883);
-    m_client->setClientId(clientId + "|securemode=3,signmethod=" + signmethod + /*",timestamp="+timestamp+ */"|");
-    m_client->setUsername(m_strDeviceName + "&" + m_strProductKey);
-    m_client->setPassword(QMessageAuthenticationCode::hash(message.toLocal8Bit(),m_strDeviceSecret.toLocal8Bit(),
-                                                           QCryptographicHash::Sha1).toHex());
-    m_client->setKeepAlive(120);
-    m_client->setHostName(m_strTargetServer);
-    m_client->setPort(1883);
-    m_client->connectToHost();
-
-    QString subscription="/ie44FqhJNgx/D001/user/get";
-    //QString topic="/ie44FqhJNgx/D001/user/update";
-    m_client->subscribe(subscription);
-    connect(m_client,SIGNAL(received(QMQTT::Message)),this,SLOT(receiveMessageSlot(QMQTT::Message)));
-    qDebug()<<"连接阿里云"<<endl;
-}
-
-//void Widget::handtimeout()
-//{
-//    ReadRequest();
-//}
-
-void Widget::ReadyRead()
-{
-    displayData();
-    generaChart();
-    uploadali();
-    alarm();
-
-    static int timenumber = 2;
-    while (!(timenumber--)) {
-       InsertValue();
-       InsertValue2();
-       timenumber = 2;
-    }
-}
-
-void Widget::dataReceivedVideo()
-{
-    QByteArray buffer = Client->readAll();
-    QString data(buffer);
-
-    //对接收的到的数据放到队列中
-    int pos = data.indexOf("Content-Type");
-    if(pos != -1)
-    {
-        frameData.append(buffer.left(pos));
-        dataQueue.enqueue(frameData);
-        frameData.clear();
-        frameData.append(buffer.mid(pos));
-
-    } else {
-        frameData.append(buffer);
-    }
-
-    //触发void dataProcess()函数，合成图片和显示
-    if (!dataQueue.isEmpty()) {
-        frameBuffer = dataQueue.dequeue();
-        dataProcessVideo();
-    }
-}
-
-void Widget::dataProcessVideo()
-{
-    QString data = QString::fromUtf8(frameBuffer.data(), 50); //截取前面50个字符
-
-//    qDebug() <<frameBuffer.left(100)<<"......";
-//    qDebug() <<frameBuffer.right(100);
-//    qDebug() <<"------------------------";
-//      qDebug()<<frameBuffer;
-//      qDebug() <<"------------------------";
-
-    const QString lengthKeyword = "Content-Length: ";
-
-    int lengthIndex = data.indexOf(lengthKeyword);
-    if (lengthIndex >= 0){
-        int endIndex = data.indexOf("\r\n", lengthIndex);
-        int length = data.midRef(lengthIndex + 16, endIndex - (lengthIndex + 16 - 1)).toInt(); //取出Content-Length后的数字
-        QPixmap pixmap;
-        auto loadStatus = pixmap.loadFromData(frameBuffer.mid(endIndex + 4, length));
-
-        //合成失败
-        if (!loadStatus) {
-            qDebug() << "Video load failed";
-            frameBuffer.clear();
-            return;
-        }
-        frameBuffer.clear();
-        QPixmap pps = pixmap.scaled(ui->label_2->width(), ui->label_2->height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-        ui->label_2->setPixmap(pps);
-     }
-
-}
-
-void Widget::receiveMessageSlot(QMQTT::Message message)
-{
-    QByteArray pay_load = message.payload();
-    QJsonParseError jsonError;
-    QJsonDocument doc = QJsonDocument::fromJson(pay_load, &jsonError);
-    qDebug()<<"收到消息";
-    if (doc.isObject()) {
-            QJsonObject object = doc.object();  // 转化为对象
-
-            QJsonValue value = object.value("data");
-            QString str1 = value.toString();
-            int data= value.toInt();
-            QString num=QString::number(data);
-
-            QJsonValue name = object.value("cmd");  // 获取指定 key 对应的 value
-            QString cmd = name.toString();// 将 value 转化为字符串
-
-            if(cmd=="NO1"){
-              if( (data&&(!flagswich)) | ((!data)&&flagswich) )
-               on_swich1Button_clicked();
-            }
-           else if(cmd=="TimerSwitch1"){
-                QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,5,1);
-                writeunit.setValue(0,data);
-                 QModbusReply *reply = client->sendWriteRequest(writeunit,1);
-                 if(reply){
-                     reply->deleteLater();
-                 }
-                 if(data)
-                 {
-                    ui->appoint1->setText("已预约");
-                 }
-                 else {
-                    ui->appoint1->setText("未预约");
-                 }
-
-            }
-          else  if(cmd=="TimerSwitch2"){
-                QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,13,1); //寄存器+1
-                writeunit.setValue(0,data);
-                 QModbusReply *reply = client->sendWriteRequest(writeunit,1);
-                 if(reply){
-                     reply->deleteLater();
-                 }
-                 if(data)
-                 {
-                    ui->appoint2->setText("已预约");
-                 }
-                 else {
-                    ui->appoint2->setText("未预约");
-                 }
-
-
-            }
-         else   if(cmd=="NO2"){
-              if( (data&&(!flagswich2)) | ((!data)&&flagswich2) )
-                on_swich2Button_clicked();
-            }
-        else   if(cmd=="AppointmentTime1"){
-              // QString str =QString("%1:00").arg(data);
-
-            }
-        else   if(cmd=="ENDTime1"){
-              //  QString str =QString("%1:00").arg(data);
-
-            }
-        else   if(cmd=="ParkedNumber"){
-               ui->packedNumber->setText(str1);
-               qDebug()<<"parkednumber"<<str1;
-
-            }
-
-     }
-}
-
 void Widget::generaChart()
 {
     if(pointCount > AXIS_MAX_X1)
@@ -412,36 +609,86 @@ void Widget::generaChart()
     pointCount++;
 }
 
-void Widget::alarm()
+void Widget::on_clear_chart_clicked()
 {
-    if(!flagtemp)
-      if((ui->temp1->text().mid(0,2).toInt())>=33)
-      {
-          QMessageBox::information(this,"报警","充电桩1的温度过高");
-          flagtemp = 1;
-          qDebug()<<ui->temp1->text()<<endl;
-      }
+    m_lineSeries1->clear();
+    m_lineSeries2->clear();
+    m_lineSeries3->clear();
+    m_lineSeries4->clear();
 
-    if(!flagtemp2)
-      if((ui->temp2->text().mid(0,2).toInt())>=33)
-      {
-          QMessageBox::information(this,"报警","充电桩2的温度过高");
-          flagtemp2 = 1;
-          qDebug()<<ui->temp2->text()<<endl;
-      }
+    m_lineSeries5->clear();
+    m_lineSeries6->clear();
+    m_lineSeries7->clear();
+    m_lineSeries8->clear();
 
+    m_chart1->axes(Qt::Horizontal).back()->setMin(0);
+    m_chart1->axes(Qt::Horizontal).back()->setMax(AXIS_MAX_X1);
+    m_chart2->axes(Qt::Horizontal).back()->setMin(0);
+    m_chart2->axes(Qt::Horizontal).back()->setMax(AXIS_MAX_X2);
+    m_chart3->axes(Qt::Horizontal).back()->setMin(0);
+    m_chart3->axes(Qt::Horizontal).back()->setMax(AXIS_MAX_X3);
+    m_chart4->axes(Qt::Horizontal).back()->setMin(0);
+    m_chart4->axes(Qt::Horizontal).back()->setMax(AXIS_MAX_X3);
+
+    pointCount = 0;
+    //qDebug() << 55 ;
 }
 
-void Widget::InitLogin()
+void Widget::InitiatData()
 {
-    connect(my_login,&Dialog1::assure1,this,&Widget::receiveAssure1);
-    ui->managermode->setText("游客");
-    ui->swich1Button->setEnabled(false);
-    ui->swich2Button->setEnabled(false);
-    ui->swich3Button->setEnabled(false);
-   // ui->swich4Button->setEnabled(false);
-    // ui->swich2->setEnabled(false);
+    QBarSet *set0 = new QBarSet("充电桩1");
+    QBarSet *set1 = new QBarSet("充电桩2");
+    QBarSet *set2 = new QBarSet("充电桩3");
+
+    *set0 << 11 << 33 << 27 << 60 << 59;
+    *set1 << 19 << 26 << 40 << 79 << 66;
+    *set2 << 5 << 40 << 18 << 22 << 33;
+    QBarSeries *series = new QBarSeries();
+    series->append(set0);
+    series->append(set1);
+    series->append(set2);
+
+    QChart *chart = new QChart();
+    chart->addSeries(series);
+    chart->setTitle("充电桩使用时长");
+    chart->setAnimationOptions(QChart::SeriesAnimations);
+
+    QStringList categories;
+    categories << "四月" << "五月" << "六月" << "七月" << "八月";
+    QBarCategoryAxis *axisX = new QBarCategoryAxis();
+    axisX->append(categories);
+    chart->addAxis(axisX, Qt::AlignBottom);
+    series->attachAxis(axisX);
+
+    QValueAxis *axisY = new QValueAxis();
+    axisY->setRange(0,100);
+    chart->addAxis(axisY, Qt::AlignLeft);
+    series->attachAxis(axisY);
+
+    chart->legend()->setVisible(true);
+    chart->legend()->setAlignment(Qt::AlignBottom);
+
+    ui->mchartview->setRenderHint(QPainter::Antialiasing);
+    ui->mchartview->setChart(chart);
 }
+
+void Widget::on_timer0_clicked()  // start timer or stop timer
+{
+    if(timer->isActive())
+    {
+        timer->stop();
+        ui->timer0->setText("启动定时器");
+    }else
+    {
+        pointCount = 0;
+        timer->start(1000);
+        ui->timer0->setText("停止定时器");
+    }
+}
+
+
+
+// =========== Database代码 ===========
 
 void Widget::InitDataBase()
 {
@@ -511,375 +758,6 @@ void Widget::InsertValue2()
     {
         qDebug()<<"无法执行sql语句2";
     }
-}
-
-void Widget::chargeTime()
-{
-   int min1;
-   static int ChargeTime1 = 0;
-   ChargeTime1++;
-   min1=ChargeTime1/60;
-   QString str =QString("%1分钟").arg(min1);
-   ui->chargetime->setText(str);
-
-}
-
-void Widget::chargeTime2()
-{
-    int min1;
-    static int ChargeTime1 = 0;
-    ChargeTime1++;
-    min1=ChargeTime1/60;
-    QString str =QString("%1分钟").arg(min1);
-    ui->chargetime2->setText(str);
-}
-
-void Widget::startvideo()
-{
-    if(startflag) {
-        return ;
-    }
-
-    //启动视频流传输前，需要检查IP地址是否有效
-//    QString ipAddress = "61.183.42.64";
-      QString ipAddress = "192.168.184.150";
-    //视频流的http请求命令格式，例如："http://192.168.1.8:81/stream"
-    QNetworkRequest request;
-  //  QString url="http://" + ipAddress + ":46221//mjpeg/1";
-    QString url="http://" + ipAddress + ":80//mjpeg/1";
-    request.setUrl(QUrl(url));
-    request.setRawHeader("Connection", "Keep-Alive");
-    request.setRawHeader("User-Agent", "1601");
-
-    Manager = new QNetworkAccessManager();
-    Client = Manager->get(request);
-
-    connect(Client, &QNetworkReply::readyRead, this, &Widget::dataReceivedVideo);
-
-    startflag = true;
-
-    qDebug()<<url;
-}
-
-void Widget::stopvideo()
-{
-    qDebug() << "===== STOP =====";
-    if(!startflag) { //只有开启视频流才可以停止，或者防止多次触发停止视频流
-        return;
-    }
-
-    Client->close();
-    Client->deleteLater();
-    startflag = false;
-}
-
-void Widget::InitiatData()
-{
-    QBarSet *set0 = new QBarSet("充电桩1");
-    QBarSet *set1 = new QBarSet("充电桩2");
-    QBarSet *set2 = new QBarSet("充电桩3");
-
-    *set0 << 11 << 33 << 27 << 60 << 59;
-    *set1 << 19 << 26 << 40 << 79 << 66;
-    *set2 << 5 << 40 << 18 << 22 << 33;
-    QBarSeries *series = new QBarSeries();
-    series->append(set0);
-    series->append(set1);
-    series->append(set2);
-
-    QChart *chart = new QChart();
-    chart->addSeries(series);
-    chart->setTitle("充电桩使用时长");
-    chart->setAnimationOptions(QChart::SeriesAnimations);
-
-    QStringList categories;
-    categories << "四月" << "五月" << "六月" << "七月" << "八月";
-    QBarCategoryAxis *axisX = new QBarCategoryAxis();
-    axisX->append(categories);
-    chart->addAxis(axisX, Qt::AlignBottom);
-    series->attachAxis(axisX);
-
-    QValueAxis *axisY = new QValueAxis();
-    axisY->setRange(0,100);
-    chart->addAxis(axisY, Qt::AlignLeft);
-    series->attachAxis(axisY);
-
-    chart->legend()->setVisible(true);
-    chart->legend()->setAlignment(Qt::AlignBottom);
-
-    ui->mchartview->setRenderHint(QPainter::Antialiasing);
-    ui->mchartview->setChart(chart);
-}
-
-void Widget::ReadRequest()
-{
-    QModbusDataUnit readunit(QModbusDataUnit::HoldingRegisters,0,24); //24个寄存器
-   if(auto *reply =client->sendReadRequest(readunit,1))
-    {
-        if (!reply->isFinished())
-                {
-                   QObject::connect(reply, &QModbusReply::finished,this,&Widget::ReadyRead);
-                    qDebug()<<"zhengzaiduqu"<<endl;
-                }
-                else
-                {
-                    delete reply;
-                }
-   }
-}
-
-void Widget::uploadali()
-{
-    int aliswich1,aliswich2;
-    if(ui->swich1->text()=="OFF")
-    {
-        aliswich1 = 0;
-    }
-    else
-    {
-        aliswich1 = 1;
-    }
-    if(ui->swich2->text()=="OFF")
-    {
-        aliswich2 = 0;
-    }
-    else
-    {
-        aliswich2 = 1;
-    }
-    QString topic="/ie44FqhJNgx/D001/user/update";
-    QString msg="{\"temperature1\":";
-            msg+=ui->temp1->text().mid(0,2);
-            msg+=",\"Humidity1\":";
-             msg+=ui->hum1->text().mid(0,2);
-              msg+=",\"RMSCurrent1\":";
-              msg+=ui->current1->text();
-              msg+=",\"RMSVoltage1\":";
-              msg+=ui->vol1->text();
-              msg+=",\"NO1\":";
-              msg+=QString::number(aliswich1);
-              msg+=",\"GeoLocation1\":";
-              msg+=QString::number(aliswich1);
-              msg+="}";
-    QByteArray ba;
-    ba.append(msg);
-    QMQTT::Message message(1,topic,ba);
-    m_client->publish(message);
-
-    QString msg2="{\"temperature2\":";
-    msg2+=ui->temp2->text().mid(0,2);
-    msg2+=",\"Humidity2\":";
-    msg2+=ui->hum2->text().mid(0,2);
-    msg2+=",\"RMSCurrent2\":";
-    msg2+=ui->current2->text();
-    msg2+=",\"RMSVoltage2\":";
-    msg2+=ui->vol2->text();
-    msg2+=",\"NO2\":";
-    msg2+=QString::number(aliswich2);
-    msg2+=",\"GeoLocation2\":";
-    msg2+=QString::number(aliswich2);
-    msg2+="}";
-    QByteArray ba2;
-    ba2.append(msg2);
-    QMQTT::Message message2(2,topic,ba2);
-    m_client->publish(message2);
-
-    qDebug()<<"上传1,2成功"<<endl;
-   // qDebug()<<topic<<endl;
-}
-
-void Widget::displayData()
-{
-    auto *reply = qobject_cast<QModbusReply *>(sender());
-    if (!reply){
-        return ;
-    }
-    if (reply->error() == QModbusDevice::NoError)
-    {
-
-        const QModbusDataUnit readData = reply->result();
-        vector.append(readData.value(0));
-
-        temperature =readData.value(0);
-        humidty = readData.value(1);
-        voltage = readData.value(2);
-        current = readData.value(3)/100.0; //电流改变
-        flagswich = readData.value(4);
-
-        temperature2 =readData.value(7);
-        humidty2 = readData.value(8);
-        voltage2 = readData.value(9);
-        current2 = readData.value(10)/100.0;
-        flagswich2 =readData.value(11);
-
-        QString str1 =QString("%1").arg(temperature);
-        QString str2 =QString("%1").arg(humidty);
-        QString str3 =QString("%1").arg(voltage,0,'f',1);
-        QString str4 =QString("%1").arg(current,0,'f',2);//显示的是小数点后的位数
-
-        QString str5 =QString("%1").arg(temperature2);
-        QString str6 =QString("%1").arg(humidty2);
-        QString str7 =QString("%1").arg(voltage2,0,'f',1);
-        QString str8 =QString("%1").arg(current2,0,'f',2);//显示的是小数点后的位数
-
-
-        ui->temp1->setText(str1+"℃");
-        ui->hum1->setText(str2+"%");
-        ui->vol1->setText(str3);
-        ui->current1->setText(str4);
-        ui->temp2->setText(str5+"℃");
-        ui->hum2->setText(str6+"%");
-        ui->vol2->setText(str7);
-        ui->current2->setText(str8);
-
-        if(flagswich)
-        {    
-        ui->swich1->setText("ON");
-        ui->swich1Button->setText("断电");
-        chargeTime();
-         }
-        else
-        {
-            ui->swich1->setText("OFF");
-           ui->swich1Button->setText("充电");
-           //断电后不显示电压电流
-           ui->vol1->setText("0.0");
-           ui->current1->setText("0.00");
-        }
-
-        if(flagswich2)
-        {
-        ui->swich2->setText("ON");
-        ui->swich2Button->setText("断电");
-        chargeTime2();
-         }
-        else
-        {
-            ui->swich2->setText("OFF");
-           ui->swich2Button->setText("充电");
-           //断电后不显示电压电流
-           ui->vol2->setText("0.0");
-           ui->current2->setText("0.00");
-        }
-
-
-        qDebug()<<temperature<< humidty<<voltage2<<current2<<flagswich<<endl;
-        qDebug()<<"读取成功"<<endl;
-        vector.clear();
-    }
-    else
-    {
-        qDebug()<<"读取失败"<<endl;
-
-    }
-    reply->deleteLater(); // delete the reply
-}
-#if 1
-void Widget::InitTime()
-{
-
-       QDateTime time = QDateTime::currentDateTime();
-       ui->time_hour->setText(time.toString("hh"));
-       ui->time_min->setText(time.toString("mm"));
-       ui->date->setText(time.toString("M月dd日"));
-       ui->week->setText(time.toString("dddd"));
-
-}
-#endif
-
-void Widget::Start_timer_clicked()  // start timer or stop timer
-{
-    if(timer->isActive())
-    {
-        timer->stop();
-        ui->timer0->setText("启动定时器");
-    }else
-    {
-        pointCount = 0;
-        timer->start(1000);
-        ui->timer0->setText("停止定时器");
-    }
-}
-
-void Widget::on_pushButton_5_clicked()//clear chart
-{
-    m_lineSeries1->clear();
-    m_lineSeries2->clear();
-    m_lineSeries3->clear();
-    m_lineSeries4->clear();
-
-    m_lineSeries5->clear();
-    m_lineSeries6->clear();
-    m_lineSeries7->clear();
-    m_lineSeries8->clear();
-
-    m_chart1->axes(Qt::Horizontal).back()->setMin(0);
-    m_chart1->axes(Qt::Horizontal).back()->setMax(AXIS_MAX_X1);
-    m_chart2->axes(Qt::Horizontal).back()->setMin(0);
-    m_chart2->axes(Qt::Horizontal).back()->setMax(AXIS_MAX_X2);
-    m_chart3->axes(Qt::Horizontal).back()->setMin(0);
-    m_chart3->axes(Qt::Horizontal).back()->setMax(AXIS_MAX_X3);
-    m_chart4->axes(Qt::Horizontal).back()->setMin(0);
-    m_chart4->axes(Qt::Horizontal).back()->setMax(AXIS_MAX_X3);
-
-    pointCount = 0;
-}
-
-void Widget::on_swich1Button_clicked()//充放电
-{
-    if(!flagswich)
-    {
-        QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,6,1);//充电
-        writeunit.setValue(0,1);
-         QModbusReply *reply = client->sendWriteRequest(writeunit,1);
-         if(reply){
-             reply->deleteLater();
-         }
-        flagswich = 1;
-        ui->swich1->setText("ON");
-        ui->swich1Button->setText("断电");
-    }
-    else
-    {
-        QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,6,1);//断电
-        writeunit.setValue(0,0);
-         QModbusReply *reply = client->sendWriteRequest(writeunit,1);
-         if(reply){
-             reply->deleteLater();
-         }
-         flagswich = 0;
-         ui->swich1->setText("OFF");
-        ui->swich1Button->setText("充电");
-        //断电后不显示电压电流
-        ui->vol1->setText("0.00");
-        ui->current1->setText("0.00");
-    }
-}
-
-void Widget::receiveAssure1(bool flagsuccess)
-{
-    if(flagsuccess)
-    {
-       qDebug()<<"登陆成功"<<endl;
-       my_login->close();
-       flagLogin = 1;
-       ui->swich1Button->setEnabled(flagLogin);
-       ui->swich2Button->setEnabled(flagLogin);
-       ui->swich3Button->setEnabled(flagLogin);
-      // ui->swich4Button->setEnabled(flagLogin);
-       ui->managermode->setText("管理员");
-    }
-    else
-    {
-       qDebug()<<"登陆失败"<<endl;
-
-    }
-}
-
-void Widget::currentIndexChangedSlot1(int index) //重命名 槽函数
-{
-    m_index = index;
-    qDebug()<<m_index<<endl;
 }
 
 void Widget::on_displayTable_clicked()
@@ -954,6 +832,206 @@ void Widget::on_findData_clicked()
     table->select();
 }
 
+void Widget::on_comboBoxID_currentIndexChanged(int index)
+{
+    m_index2 = index;
+    qDebug()<<m_index2<<endl;
+}
+
+void Widget::currentIndexChangedSlot1(int index)
+{
+    m_index = index;
+    qDebug()<<m_index<<endl;
+}
+
+
+// =========== Video代码 ===========
+
+void Widget::on_startStream_clicked()
+{
+   startvideo();
+   ui->startStream->setEnabled(false);
+   ui->stopStream->setEnabled(true);
+}
+
+void Widget::on_stopStream_clicked()
+{
+   stopvideo();
+   ui->startStream->setEnabled(true);
+   ui->stopStream->setEnabled(false);
+}
+
+void Widget::startvideo()
+{
+    if(startflag) {
+        return ;
+    }
+
+    //启动视频流传输前，需要检查IP地址是否有效
+//    QString ipAddress = "61.183.42.64";
+      QString ipAddress = "192.168.184.150";
+    //视频流的http请求命令格式，例如："http://192.168.1.8:81/stream"
+    QNetworkRequest request;
+  //  QString url="http://" + ipAddress + ":46221//mjpeg/1";
+    QString url="http://" + ipAddress + ":80//mjpeg/1";
+    request.setUrl(QUrl(url));
+    request.setRawHeader("Connection", "Keep-Alive");
+    request.setRawHeader("User-Agent", "1601");
+
+    Manager = new QNetworkAccessManager();
+    Client = Manager->get(request);
+
+    connect(Client, &QNetworkReply::readyRead, this, &Widget::dataReceivedVideo);
+
+    startflag = true;
+
+    qDebug()<<url;
+}
+
+void Widget::stopvideo()
+{
+    qDebug() << "===== STOP =====";
+    if(!startflag) { //只有开启视频流才可以停止，或者防止多次触发停止视频流
+        return;
+    }
+
+    Client->close();
+    Client->deleteLater();
+    startflag = false;
+}
+
+void Widget::dataReceivedVideo()
+{
+    QByteArray buffer = Client->readAll();
+    QString data(buffer);
+
+    //对接收的到的数据放到队列中
+    int pos = data.indexOf("Content-Type");
+    if(pos != -1)
+    {
+        frameData.append(buffer.left(pos));
+        dataQueue.enqueue(frameData);
+        frameData.clear();
+        frameData.append(buffer.mid(pos));
+
+    } else {
+        frameData.append(buffer);
+    }
+
+    //触发void dataProcess()函数，合成图片和显示
+    if (!dataQueue.isEmpty()) {
+        frameBuffer = dataQueue.dequeue();
+        dataProcessVideo();
+    }
+}
+
+void Widget::dataProcessVideo()
+{
+    QString data = QString::fromUtf8(frameBuffer.data(), 50); //截取前面50个字符
+
+//    qDebug() <<frameBuffer.left(100)<<"......";
+//    qDebug() <<frameBuffer.right(100);
+//    qDebug() <<"------------------------";
+//      qDebug()<<frameBuffer;
+//      qDebug() <<"------------------------";
+
+    const QString lengthKeyword = "Content-Length: ";
+
+    int lengthIndex = data.indexOf(lengthKeyword);
+    if (lengthIndex >= 0){
+        int endIndex = data.indexOf("\r\n", lengthIndex);
+        int length = data.midRef(lengthIndex + 16, endIndex - (lengthIndex + 16 - 1)).toInt(); //取出Content-Length后的数字
+        QPixmap pixmap;
+        auto loadStatus = pixmap.loadFromData(frameBuffer.mid(endIndex + 4, length));
+
+        //合成失败
+        if (!loadStatus) {
+            qDebug() << "Video load failed";
+            frameBuffer.clear();
+            return;
+        }
+        frameBuffer.clear();
+        QPixmap pps = pixmap.scaled(ui->label_2->width(), ui->label_2->height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        ui->label_2->setPixmap(pps);
+     }
+
+}
+
+
+// =========== Login代码 ===========
+
+void Widget::InitLogin()
+{
+    connect(my_login,&Dialog1::assure1,this,&Widget::receiveAssure1);
+    ui->managermode->setText("游客");
+    ui->swich1Button->setEnabled(false);
+    ui->swich2Button->setEnabled(false);
+    ui->swich3Button->setEnabled(false);
+   // ui->swich4Button->setEnabled(false);
+    // ui->swich2->setEnabled(false);
+}
+
+void Widget::receiveAssure1(bool flagsuccess)
+{
+    if(flagsuccess)
+    {
+       qDebug()<<"登陆成功"<<endl;
+       my_login->close();
+       flagLogin = 1;
+       ui->swich1Button->setEnabled(flagLogin);
+       ui->swich2Button->setEnabled(flagLogin);
+       ui->swich3Button->setEnabled(flagLogin);
+      // ui->swich4Button->setEnabled(flagLogin);
+       ui->managermode->setText("管理员");
+    }
+    else
+    {
+       qDebug()<<"登陆失败"<<endl;
+
+    }
+}
+
+void Widget::on_managermode_clicked()
+{
+    if(!flagLogin)
+    {
+        my_login->show();
+    }
+    else
+    {
+        flagLogin = 0;
+        ui->swich1Button->setEnabled(false);
+        ui->swich2Button->setEnabled(false);
+        ui->swich3Button->setEnabled(false);
+        ui->managermode->setText("游客");
+    }
+}
+
+
+// =========== Alarm代码 ===========
+
+void Widget::alarm()
+{
+    if(!flagtemp)
+      if((ui->temp1->text().mid(0,2).toInt())>=33)
+      {
+          QMessageBox::information(this,"报警","充电桩1的温度过高");
+          flagtemp = 1;
+          qDebug()<<ui->temp1->text()<<endl;
+      }
+
+    if(!flagtemp2)
+      if((ui->temp2->text().mid(0,2).toInt())>=33)
+      {
+          QMessageBox::information(this,"报警","充电桩2的温度过高");
+          flagtemp2 = 1;
+          qDebug()<<ui->temp2->text()<<endl;
+      }
+
+}
+
+// =========== StackWidget代码 ===========
+
 void Widget::on_homebutton_clicked()
 {
    ui->stackedWidget->setCurrentIndex(0);
@@ -974,70 +1052,9 @@ void Widget::on_dataVisualize_clicked()
    ui->stackedWidget->setCurrentIndex(2);
 }
 
-void Widget::on_managermode_clicked()
-{
-    if(!flagLogin)
-    {
-        my_login->show();
-    }
-    else
-    {
-        flagLogin = 0;
-        ui->swich1Button->setEnabled(false);
-        ui->swich2Button->setEnabled(false);
-        ui->swich3Button->setEnabled(false);
-        ui->managermode->setText("游客");
-    }
-}
-
 void Widget::on_videomonitor_clicked()
 {
     ui->stackedWidget->setCurrentIndex(4);
-}
-
-void Widget::on_swich2Button_clicked()
-{
-    if(!flagswich2)
-    {
-        QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,14,1);//充电
-        writeunit.setValue(0,1);
-         QModbusReply *reply = client->sendWriteRequest(writeunit,1);
-         if(reply){
-             reply->deleteLater();
-         }
-        flagswich2 = 1;
-        ui->swich2->setText("ON");
-        ui->swich2Button->setText("断电");
-    }
-    else
-    {
-        QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,14,1);//断电
-        writeunit.setValue(0,0);
-         QModbusReply *reply = client->sendWriteRequest(writeunit,1);
-         if(reply){
-             reply->deleteLater();
-         }
-         flagswich2 = 0;
-         ui->swich2->setText("OFF");
-        ui->swich2Button->setText("充电");
-        //断电后不显示电压电流
-        ui->vol2->setText("0.00");
-        ui->current2->setText("0.00");
-    }
-}
-
-void Widget::on_startStream_clicked()
-{
-   startvideo();
-   ui->startStream->setEnabled(false);
-   ui->stopStream->setEnabled(true);
-}
-
-void Widget::on_stopStream_clicked()
-{
-   stopvideo();
-   ui->startStream->setEnabled(true);
-   ui->stopStream->setEnabled(false);
 }
 
 void Widget::on_data_statistics_clicked()
@@ -1046,11 +1063,22 @@ void Widget::on_data_statistics_clicked()
 
 }
 
-void Widget::on_comboBoxID_currentIndexChanged(int index)
+
+// =========== Time代码 ===========
+
+void Widget::InitTime()
 {
-    m_index2 = index;
-    qDebug()<<m_index2<<endl;
+
+       QDateTime time = QDateTime::currentDateTime();
+       ui->time_hour->setText(time.toString("hh"));
+       ui->time_min->setText(time.toString("mm"));
+       ui->date->setText(time.toString("M月dd日"));
+       ui->week->setText(time.toString("dddd"));
+
 }
+
+
+
 
 
 
