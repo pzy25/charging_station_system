@@ -135,6 +135,7 @@ private:
     //chart function
     QLineSeries* m_lineSeries1,* m_lineSeries2,* m_lineSeries3,* m_lineSeries4;
     QLineSeries* m_lineSeries5,* m_lineSeries6,* m_lineSeries7,* m_lineSeries8;
+    QLineSeries* m_lineSeries9,* m_lineSeries10,* m_lineSeries11,* m_lineSeries12;
     QValueAxis *m_axisX1, *m_axisY1;
     QValueAxis *m_axisX2, *m_axisY2;
     QValueAxis *m_axisX3, *m_axisY3;

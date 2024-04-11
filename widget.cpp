@@ -350,7 +350,7 @@ void Widget::InitiatMQTT()
 
 void Widget::uploadali()
 {
-    int aliswich1,aliswich2;
+    int aliswich1,aliswich2,aliswich3;
     if(ui->swich1->text()=="OFF")
     {
         aliswich1 = 0;
@@ -367,6 +367,15 @@ void Widget::uploadali()
     {
         aliswich2 = 1;
     }
+    if(ui->swich3->text()=="OFF")
+    {
+        aliswich3 = 0;
+    }
+    else
+    {
+        aliswich3 = 1;
+    }
+
     QString topic="/ie44FqhJNgx/D001/user/update";
     QString msg="{\"temperature1\":";
             msg+=ui->temp1->text().mid(0,2);
@@ -404,7 +413,25 @@ void Widget::uploadali()
     QMQTT::Message message2(2,topic,ba2);
     m_client->publish(message2);
 
-    qDebug()<<"上传1,2成功"<<endl;
+    QString msg3="{\"temperature3\":";
+    msg3+=ui->temp3->text().mid(0,2);
+    msg3+=",\"Humidity3\":";
+    msg3+=ui->hum3->text().mid(0,2);
+    msg3+=",\"RMSCurrent3\":";
+    msg3+=ui->current3->text();
+    msg3+=",\"RMSVoltage3\":";
+    msg3+=ui->vol3->text();
+    msg3+=",\"NO3\":";
+    msg3+=QString::number(aliswich3);
+    msg3+=",\"GeoLocation3\":";
+    msg3+=QString::number(aliswich3);
+    msg3+="}";
+    QByteArray ba3;
+    ba3.append(msg3);
+    QMQTT::Message message3(3,topic,ba3);
+    m_client->publish(message3);
+
+    qDebug()<<"上传1,2,3成功"<<endl;
    // qDebug()<<topic<<endl;
 }
 
@@ -429,6 +456,14 @@ void Widget::receiveMessageSlot(QMQTT::Message message)
               if( (data&&(!flagswich)) | ((!data)&&flagswich) )
                on_swich1Button_clicked();
             }
+           else if(cmd=="NO2"){
+              if( (data&&(!flagswich2)) | ((!data)&&flagswich2) )
+                   on_swich2Button_clicked();
+               }
+           else if(cmd=="NO3"){
+              if( (data&&(!flagswich3)) | ((!data)&&flagswich3) )
+                   on_swich3Button_clicked();
+               }
            else if(cmd=="TimerSwitch1"){
                 QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,5,1);
                 writeunit.setValue(0,data);
@@ -462,16 +497,21 @@ void Widget::receiveMessageSlot(QMQTT::Message message)
 
 
             }
-         else   if(cmd=="NO2"){
-              if( (data&&(!flagswich2)) | ((!data)&&flagswich2) )
-                on_swich2Button_clicked();
-            }
-        else   if(cmd=="AppointmentTime1"){
-              // QString str =QString("%1:00").arg(data);
 
-            }
-        else   if(cmd=="ENDTime1"){
-              //  QString str =QString("%1:00").arg(data);
+        else   if(cmd=="TimerSwitch3"){
+                QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,21,1); //寄存器+1
+                writeunit.setValue(0,data);
+                 QModbusReply *reply = client->sendWriteRequest(writeunit,1);
+                 if(reply){
+                     reply->deleteLater();
+                 }
+                 if(data)
+                 {
+                    ui->appoint3->setText("已预约");
+                 }
+                 else {
+                    ui->appoint3->setText("未预约");
+                 }
 
             }
         else   if(cmd=="ParkedNumber"){
@@ -560,29 +600,50 @@ void Widget::InitiatChart()
     m_lineSeries8->setPointsVisible(true);
     m_lineSeries8->setName("充电桩2");
 
+    m_lineSeries9 = new QLineSeries();                             // 创建曲线绘制对象
+    m_lineSeries9->setPointsVisible(true);                         // 设置数据点可见
+    m_lineSeries9->setName("充电桩3");                            // 图例名称
+
+    m_lineSeries10 = new QLineSeries();
+    m_lineSeries10->setPointsVisible(true);
+    m_lineSeries10->setName("充电桩3");
+
+    m_lineSeries11 = new QLineSeries();
+    m_lineSeries11->setPointsVisible(true);
+    m_lineSeries11->setName("充电桩3");
+
+    m_lineSeries12 = new QLineSeries();
+    m_lineSeries12->setPointsVisible(true);
+    m_lineSeries12->setName("充电桩3");
+
+
     m_chart1 = new QChart();                                        // 创建图表对象
     m_chart1->addAxis(m_axisX1, Qt::AlignBottom);                      // 将X轴添加到图表上
     m_chart1->addAxis(m_axisY1, Qt::AlignLeft);                    // 将Y轴添加到图表上
     m_chart1->addSeries(m_lineSeries1);                              // 将曲线对象添加到图表上
     m_chart1->addSeries(m_lineSeries5);
+    m_chart1->addSeries(m_lineSeries9);
 
     m_chart2 = new QChart();
     m_chart2->addAxis(m_axisX2, Qt::AlignBottom);
     m_chart2->addAxis(m_axisY2, Qt::AlignLeft);
     m_chart2->addSeries(m_lineSeries2);
     m_chart2->addSeries(m_lineSeries6);
+    m_chart2->addSeries(m_lineSeries10);
 
     m_chart3 = new QChart();
     m_chart3->addAxis(m_axisX3, Qt::AlignBottom);
     m_chart3->addAxis(m_axisY3, Qt::AlignLeft);
     m_chart3->addSeries(m_lineSeries3);
     m_chart3->addSeries(m_lineSeries7);
+    m_chart3->addSeries(m_lineSeries11);
 
     m_chart4 = new QChart();
     m_chart4->addAxis(m_axisX4, Qt::AlignBottom);
     m_chart4->addAxis(m_axisY4, Qt::AlignLeft);
     m_chart4->addSeries(m_lineSeries4);
     m_chart4->addSeries(m_lineSeries8);
+    m_chart4->addSeries(m_lineSeries12);
 
     m_chart1->setAnimationOptions(QChart::SeriesAnimations);        // 动画：能使曲线绘制显示的更平滑，过渡效果更好看
     m_chart2->setAnimationOptions(QChart::SeriesAnimations);
@@ -617,6 +678,19 @@ void Widget::InitiatChart()
     m_lineSeries8->attachAxis(m_axisX4);
     m_lineSeries8->attachAxis(m_axisY4);
 
+    m_lineSeries9->attachAxis(m_axisX1);                             // 曲线对象关联上X轴，此步骤必须在m_chart->addSeries之后
+    m_lineSeries9->attachAxis(m_axisY1);
+
+    m_lineSeries10->attachAxis(m_axisX2);
+    m_lineSeries10->attachAxis(m_axisY2);
+
+    m_lineSeries11->attachAxis(m_axisX3);
+    m_lineSeries11->attachAxis(m_axisY3);
+
+    m_lineSeries12->attachAxis(m_axisX4);
+    m_lineSeries12->attachAxis(m_axisY4);
+
+
     ui->chartView1->setChart(m_chart1);
     ui->chartView1->setRenderHint(QPainter::Antialiasing);
  //   ui->chartView1->chart()->setTheme(QChart::ChartThemeBlueCerulean);
@@ -648,6 +722,10 @@ void Widget::generaChart()
         m_lineSeries6->remove(0);
         m_lineSeries7->remove(0);
         m_lineSeries8->remove(0);
+        m_lineSeries9->remove(0);
+        m_lineSeries10->remove(0);
+        m_lineSeries11->remove(0);
+        m_lineSeries12->remove(0);
         m_chart1->axes(Qt::Horizontal).back()->setMin(pointCount - AXIS_MAX_X1);
         m_chart1->axes(Qt::Horizontal).back()->setMax(pointCount);                    // 更新X轴范围
         m_chart2->axes(Qt::Horizontal).back()->setMin(pointCount - AXIS_MAX_X2);
@@ -665,6 +743,10 @@ void Widget::generaChart()
     m_lineSeries6->append(QPointF(pointCount, ui->hum2->text().mid(0,2).toInt()));
     m_lineSeries7->append(QPointF(pointCount, ui->vol2->text().toDouble()));//220
     m_lineSeries8->append(QPointF(pointCount, ui->current2->text().toDouble()));//0.13
+    m_lineSeries9->append(QPointF(pointCount, ui->temp3->text().mid(0,2).toInt()));
+    m_lineSeries10->append(QPointF(pointCount, ui->hum3->text().mid(0,2).toInt()));
+    m_lineSeries11->append(QPointF(pointCount, ui->vol3->text().toDouble()));//220
+    m_lineSeries12->append(QPointF(pointCount, ui->current3->text().toDouble()));//0.13
 
     pointCount++;
 }
@@ -680,6 +762,11 @@ void Widget::on_clear_chart_clicked()
     m_lineSeries6->clear();
     m_lineSeries7->clear();
     m_lineSeries8->clear();
+
+    m_lineSeries9->clear();
+    m_lineSeries10->clear();
+    m_lineSeries11->clear();
+    m_lineSeries12->clear();
 
     m_chart1->axes(Qt::Horizontal).back()->setMin(0);
     m_chart1->axes(Qt::Horizontal).back()->setMax(AXIS_MAX_X1);
