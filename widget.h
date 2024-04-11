@@ -152,14 +152,14 @@ private:
     //modbus tcp client
     QModbusTcpClient *client;
     QVector<quint16> vector;
-    quint16 temperature,temperature2;
-    quint16 humidty,humidty2;
-    qreal voltage,voltage2;
-    qreal current,current2;
+    quint16 temperature,temperature2,temperature3;
+    quint16 humidty,humidty2,humidty3;
+    qreal voltage,voltage2,voltage3;
+    qreal current,current2,current3;
     qreal voltali;
     qreal currali;
     //flag
-    int flagswich = 0,flagswich2=0;
+    int flagswich = 0,flagswich2=0,flagswich3=0;
     int flagtemp = 0;
     int flagtemp2 = 0;
     int flagButton = 0;

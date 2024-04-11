@@ -97,11 +97,18 @@ void Widget::displayData()
         current = readData.value(3)/100.0; //电流改变
         flagswich = readData.value(4);
 
-        temperature2 =readData.value(7);
-        humidty2 = readData.value(8);
-        voltage2 = readData.value(9);
-        current2 = readData.value(10)/100.0;
-        flagswich2 =readData.value(11);
+        temperature2 =readData.value(8);
+        humidty2 = readData.value(9);
+        voltage2 = readData.value(10);
+        current2 = readData.value(11)/100.0;
+        flagswich2 =readData.value(12);
+
+        temperature3 =readData.value(16);
+        humidty3 = readData.value(17);
+        voltage3 = readData.value(18);
+        current3 = readData.value(19)/100.0;
+        flagswich3 =readData.value(20);
+
 
         QString str1 =QString("%1").arg(temperature);
         QString str2 =QString("%1").arg(humidty);
@@ -113,15 +120,27 @@ void Widget::displayData()
         QString str7 =QString("%1").arg(voltage2,0,'f',1);
         QString str8 =QString("%1").arg(current2,0,'f',2);//显示的是小数点后的位数
 
+        QString str9 =QString("%1").arg(temperature3);
+        QString str10 =QString("%1").arg(humidty3);
+        QString str11 =QString("%1").arg(voltage3,0,'f',1);
+        QString str12 =QString("%1").arg(current3,0,'f',2);//显示的是小数点后的位数
+
 
         ui->temp1->setText(str1+"℃");
         ui->hum1->setText(str2+"%");
         ui->vol1->setText(str3);
         ui->current1->setText(str4);
+
         ui->temp2->setText(str5+"℃");
         ui->hum2->setText(str6+"%");
         ui->vol2->setText(str7);
         ui->current2->setText(str8);
+
+        ui->temp3->setText(str9+"℃");
+        ui->hum3->setText(str10+"%");
+        ui->vol3->setText(str11);
+        ui->current3->setText(str12);
+
 
         if(flagswich)
         {
@@ -153,8 +172,23 @@ void Widget::displayData()
            ui->current2->setText("0.00");
         }
 
+        if(flagswich3)
+        {
+        ui->swich3->setText("ON");
+        ui->swich3Button->setText("断电");
+        chargeTime2();
+         }
+        else
+        {
+            ui->swich3->setText("OFF");
+           ui->swich3Button->setText("充电");
+           //断电后不显示电压电流
+           ui->vol3->setText("0.0");
+           ui->current3->setText("0.00");
+        }
 
-        qDebug()<<temperature<< humidty<<voltage2<<current2<<flagswich<<endl;
+
+        qDebug()<<temperature3<< humidty3<<voltage3<<current3<<flagswich3<<endl;
         qDebug()<<"读取成功"<<endl;
         vector.clear();
     }
@@ -230,7 +264,33 @@ void Widget::on_swich2Button_clicked()
 
 void Widget::on_swich3Button_clicked()
 {
-
+    if(!flagswich3)
+    {
+        QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,22,1);//充电
+        writeunit.setValue(0,1);
+         QModbusReply *reply = client->sendWriteRequest(writeunit,1);
+         if(reply){
+             reply->deleteLater();
+         }
+        flagswich3 = 1;
+        ui->swich3->setText("ON");
+        ui->swich3Button->setText("断电");
+    }
+    else
+    {
+        QModbusDataUnit writeunit(QModbusDataUnit::HoldingRegisters,22,1);//断电
+        writeunit.setValue(0,0);
+         QModbusReply *reply = client->sendWriteRequest(writeunit,1);
+         if(reply){
+             reply->deleteLater();
+         }
+         flagswich3 = 0;
+         ui->swich3->setText("OFF");
+        ui->swich3Button->setText("充电");
+        //断电后不显示电压电流
+        ui->vol3->setText("0.00");
+        ui->current3->setText("0.00");
+    }
 }
 
 void Widget::chargeTime()
