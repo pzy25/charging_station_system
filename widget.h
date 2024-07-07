@@ -146,7 +146,7 @@ private:
     const int AXIS_MAX_X2=10,AXIS_MAX_Y2=100;
     const int AXIS_MAX_X3=10,AXIS_MAX_Y3=250;
     const int AXIS_MAX_X4=10;
-    const double AXIS_MAX_Y4=0.5;
+    const double AXIS_MAX_Y4=3;
 
     int pointCount = 0;
 

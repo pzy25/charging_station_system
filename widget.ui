@@ -58,7 +58,7 @@
 }</string>
         </property>
         <property name="text">
-         <string>  充电桩智能监控系统</string>
+         <string>慧充电动汽车充电站监控管理系统</string>
         </property>
        </widget>
       </item>
@@ -93,7 +93,7 @@
       <string notr="true"/>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>5</number>
      </property>
      <widget class="QWidget" name="mainpage">
       <property name="styleSheet">

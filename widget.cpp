@@ -1,4 +1,4 @@
-#include "widget.h"
+﻿#include "widget.h"
 #include "ui_widget.h"
 
 Widget::Widget(QWidget *parent)
@@ -1016,7 +1016,7 @@ void Widget::startvideo()
 
     //启动视频流传输前，需要检查IP地址是否有效
 //    QString ipAddress = "61.183.42.64";
-      QString ipAddress = "192.168.184.150";
+      QString ipAddress = "192.168.0.104";
     //视频流的http请求命令格式，例如："http://192.168.1.8:81/stream"
     QNetworkRequest request;
   //  QString url="http://" + ipAddress + ":46221//mjpeg/1";
@@ -1160,7 +1160,7 @@ void Widget::on_managermode_clicked()
 void Widget::alarm()
 {
     if(!flagtemp)
-      if((ui->temp1->text().mid(0,2).toInt())>=33)
+      if((ui->temp1->text().mid(0,2).toInt())>=30)
       {
           QMessageBox::information(this,"报警","充电桩1的温度过高");
           flagtemp = 1;
@@ -1168,7 +1168,7 @@ void Widget::alarm()
       }
 
     if(!flagtemp2)
-      if((ui->temp2->text().mid(0,2).toInt())>=33)
+      if((ui->temp2->text().mid(0,2).toInt())>=30)
       {
           QMessageBox::information(this,"报警","充电桩2的温度过高");
           flagtemp2 = 1;
